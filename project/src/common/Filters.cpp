@@ -342,10 +342,10 @@ void ColorMatrixFilter::DoApply(const Surface *inSrc,Surface *outDest,ImagePoint
       ARGB *dest = (ARGB *)target.Row(y);
       for(int x=0;x<filter_w;x++)
       {
-		 dest -> a = (mMatrix[15] * src -> r) + (mMatrix[16] * src -> g) + (mMatrix[17] * src -> b) + (mMatrix[18] * src -> a) + mMatrix[19];
-		 dest -> r = (mMatrix[0]  * src -> r) + (mMatrix[1]  * src -> g) + (mMatrix[2]  * src -> b) + (mMatrix[3]  * src -> a) + mMatrix[4];
-		 dest -> g = (mMatrix[5]  * src -> r) + (mMatrix[6]  * src -> g) + (mMatrix[7]  * src -> b) + (mMatrix[8]  * src -> a) + mMatrix[9];
-		 dest -> b = (mMatrix[10] * src -> r) + (mMatrix[11] * src -> g) + (mMatrix[12] * src -> b) + (mMatrix[13] * src -> a) + mMatrix[14];
+		 dest -> a = std::min(255, std::max(0, int((mMatrix[15] * src -> r) + (mMatrix[16] * src -> g) + (mMatrix[17] * src -> b) + (mMatrix[18] * src -> a) + mMatrix[19])));
+		 dest -> r = std::min(255, std::max(0, int((mMatrix[0]  * src -> r) + (mMatrix[1]  * src -> g) + (mMatrix[2]  * src -> b) + (mMatrix[3]  * src -> a) + mMatrix[4])));
+		 dest -> g = std::min(255, std::max(0, int((mMatrix[5]  * src -> r) + (mMatrix[6]  * src -> g) + (mMatrix[7]  * src -> b) + (mMatrix[8]  * src -> a) + mMatrix[9])));
+		 dest -> b = std::min(255, std::max(0, int((mMatrix[10] * src -> r) + (mMatrix[11] * src -> g) + (mMatrix[12] * src -> b) + (mMatrix[13] * src -> a) + mMatrix[14])));
          src++;
          dest++;
       }
