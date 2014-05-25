@@ -355,7 +355,7 @@ public:
 		int rx = int(mMapper.m00) >> 1;
 		int ry = int(mMapper.m11) >> 1;
 		int count = 0;
-		int c0 = 0, c1 = 0, c2 = 0, a = 0;
+		int r = 0, g = 0, b = 0, a = 0;
 		for (int j = y - ry ; j <= y + ry ; ++j)
 		{
 			if ((j < 0) || (j >= mHeight))
@@ -366,25 +366,25 @@ public:
 					continue;
 				ARGB v = *(ARGB *)( mBase + j*mStride + i*4);
 				++count;
-				c0 += v.c0;
-				c1 += v.c1;
-				c2 += v.c2;
+				r += v.r;
+				g += v.g;
+				b += v.b;
 				a += v.a;
 			}
 		}
 		float inv = 1.0f / float(count);
-		c0 *= inv;
-		c1 *= inv;
-		c2 *= inv;
+		r *= inv;
+		g *= inv;
+		b *= inv;
 		a *= inv;
-		c0 = int(c0 < 0 ? 0 : (c0 > 255 ? 255 : c0));
-		c1 = int(c1 < 0 ? 0 : (c1 > 255 ? 255 : c1));
-		c2 = int(c2 < 0 ? 0 : (c2 > 255 ? 255 : c2));
+		r = int(r < 0 ? 0 : (r > 255 ? 255 : r));
+		g = int(g < 0 ? 0 : (g > 255 ? 255 : g));
+		b = int(b < 0 ? 0 : (b > 255 ? 255 : b));
 		a = int(a < 0 ? 0 : (a > 255 ? 255 : a));
 		ARGB value;
-		value.c0 = c0 & 0xff;
-		value.c1 = c1 & 0xff;
-		value.c2 = c2 & 0xff;
+		value.r = r & 0xff;
+		value.g = g & 0xff;
+		value.b = b & 0xff;
 		value.a = a & 0xff;
 		return value;
 	}
