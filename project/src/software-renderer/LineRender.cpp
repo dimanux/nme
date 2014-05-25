@@ -432,7 +432,12 @@ public:
    bool Render( const RenderTarget &inTarget, const RenderState &inState )
    {
       inTarget.mUseStencil = false;
+	  double oldThickness = mStroke ? mStroke->thickness : 0.0;
+	  if (inState.mPhase == rpCreateMask && mStroke)
+		mStroke->thickness = 0.0;
       bool result = PolygonRender::Render(inTarget,inState);
+	  if (inState.mPhase == rpCreateMask && mStroke)
+		mStroke->thickness = oldThickness;
       inTarget.mUseStencil = true;
       return result;
    }
