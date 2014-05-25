@@ -11,6 +11,7 @@
 #include FT_BITMAP_H
 #include FT_SFNT_NAMES_H
 #include FT_TRUETYPE_IDS_H
+#include <freetype/tttables.h>
 
 #ifdef ANDROID
 #include <android/log.h>
@@ -46,8 +47,8 @@ FT_Library sgLibrary = 0;
 class FreeTypeFont : public FontFace
 {
 public:
-   FreeTypeFont(FT_Face inFace, int inPixelHeight, int inTransform, void* inBuffer) :
-     mFace(inFace), mPixelHeight(inPixelHeight),mTransform(inTransform), mBuffer(inBuffer)
+   FreeTypeFont(FT_Face inFace, int inPixelHeight, int inTransform, void* inBuffer, bool embedded) :
+     mFace(inFace), mPixelHeight(inPixelHeight),mTransform(inTransform), mBuffer(inBuffer),mEmbedded(embedded)
    {
    }
 
@@ -141,6 +142,26 @@ public:
 
    int Height()
    {
+	  if (mEmbedded)
+      {
+         TT_OS2 *pOS2 = (TT_OS2 *) FT_Get_Sfnt_Table(mFace, ft_sfnt_os2);
+         if (pOS2)
+         {
+            float ascender = float(pOS2->usWinAscent) / float(mFace->units_per_EM) * float(mFace->size->metrics.y_ppem);
+            float descender = float(pOS2->usWinDescent) / float(mFace->units_per_EM) * float(mFace->size->metrics.y_ppem);
+            return ascender + descender;
+         }
+         else
+         {
+            TT_HoriHeader *pHhea = (TT_HoriHeader *) FT_Get_Sfnt_Table(mFace, ft_sfnt_hhea);
+            if (pHhea)
+            {
+               float ascender = float(pHhea->Ascender) / float(mFace->units_per_EM) * float(mFace->size->metrics.y_ppem);
+               float descender = -float(pHhea->Descender) / float(mFace->units_per_EM) * float(mFace->size->metrics.y_ppem);
+               return ascender + descender;
+            }
+         }
+      }
       return mFace->size->metrics.height/(1<<6);
    }
 
@@ -149,10 +170,40 @@ public:
    {
       if (mFace)
       {
-         FT_Size_Metrics &metrics = mFace->size->metrics;
-         ioMetrics.ascent = std::max( ioMetrics.ascent, (float)metrics.ascender/(1<<6) );
-         ioMetrics.descent = std::max( ioMetrics.descent, (float)fabs((float)metrics.descender/(1<<6)) );
-         ioMetrics.height = std::max( ioMetrics.height, (float)metrics.height/(1<<6) );
+         float ascender, descender, height;
+         bool sfnt = false;
+         if (mEmbedded)
+         {
+            TT_OS2 *pOS2 = (TT_OS2 *) FT_Get_Sfnt_Table(mFace, ft_sfnt_os2);
+            if (pOS2)
+            {
+               ascender = float(pOS2->usWinAscent) / float(mFace->units_per_EM) * float(mFace->size->metrics.y_ppem);
+               descender = float(pOS2->usWinDescent) / float(mFace->units_per_EM) * float(mFace->size->metrics.y_ppem);
+               height = ascender + descender;
+               sfnt = true;
+            }
+            else
+            {
+               TT_HoriHeader *pHhea = (TT_HoriHeader *) FT_Get_Sfnt_Table(mFace, ft_sfnt_hhea);
+               if (pHhea)
+               {
+                  ascender = float(pHhea->Ascender) / float(mFace->units_per_EM) * float(mFace->size->metrics.y_ppem);
+                  descender = -float(pHhea->Descender) / float(mFace->units_per_EM) * float(mFace->size->metrics.y_ppem);
+                  height = ascender + descender;
+                  sfnt = true;
+               }
+            }
+         }
+         if (!sfnt)
+         {
+            FT_Size_Metrics &metrics = mFace->size->metrics;
+            ascender = (float)metrics.ascender/(1<<6);
+            descender = (float)metrics.descender/(1<<6);
+            height = (float)metrics.height/(1<<6);
+         }
+         ioMetrics.ascent = std::max( ioMetrics.ascent, ascender );
+         ioMetrics.descent = std::max( ioMetrics.descent, descender );
+         ioMetrics.height = std::max( ioMetrics.height, height );
       }
    }
 
@@ -161,6 +212,7 @@ public:
    FT_Face  mFace;
    uint32 mTransform;
    int    mPixelHeight;
+   bool mEmbedded;
 
 };
 
@@ -502,7 +554,7 @@ FontFace *FontFace::CreateFreeType(const TextFormat &inFormat,double inScale,Aut
       transform |= ffBold;
    if ( !(face->style_flags & ffItalic) && inFormat.italic )
       transform |= ffItalic;
-   return new FreeTypeFont(face,height,transform,pBuffer);
+   return new FreeTypeFont(face,height,transform,pBuffer,inBytes != NULL);
 }
 
 
