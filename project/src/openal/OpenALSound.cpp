@@ -297,7 +297,7 @@ namespace nme
        AL_PLAYING
        AL_PAUSED
        */
-      if(state == AL_STOPPED)
+      if((state == AL_STOPPED) || (state == AL_INITIAL))
       {
          if (mLoops > 0)
          {   
