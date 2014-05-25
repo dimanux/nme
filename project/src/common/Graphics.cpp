@@ -1009,7 +1009,7 @@ void GraphicsGradientFill::FillArray(ARGB *outColours)
                int dr = ToLinear[mStops[k+1].mARGB.r] - ToLinear[c0.r];
                int dg = ToLinear[mStops[k+1].mARGB.g] - ToLinear[c0.g];
                int db = ToLinear[mStops[k+1].mARGB.b] - ToLinear[c0.b];
-               for(i=p0;i<p1;i++)
+               for(i=p0;i<=p1;i++)
                {
                   outColours[i].r= FromLinear[ ToLinear[c0.r] + dr*(i-p0)/diff];
                   outColours[i].g= FromLinear[ ToLinear[c0.g] + dg*(i-p0)/diff];
@@ -1022,7 +1022,7 @@ void GraphicsGradientFill::FillArray(ARGB *outColours)
                int dr = mStops[k+1].mARGB.r - c0.r;
                int dg = mStops[k+1].mARGB.g - c0.g;
                int db = mStops[k+1].mARGB.b - c0.b;
-               for(i=p0;i<p1;i++)
+               for(i=p0;i<=p1;i++)
                {
                   outColours[i].r = c0.r + dr*(i-p0)/diff;
                   outColours[i].g = c0.g + dg*(i-p0)/diff;
