@@ -373,6 +373,13 @@ public:
       return alphaMultiplier==1 && alphaOffset == 0;
    }
    inline bool IsIdentity() const { return IsIdentityAlpha() && IsIdentityColour(); }
+   inline bool IsEqualTo(const ColorTransform &inColorTrans) const
+   {
+      return redMultiplier==inColorTrans.redMultiplier && redOffset==inColorTrans.redOffset &&
+             greenMultiplier==inColorTrans.greenMultiplier && greenOffset==inColorTrans.greenOffset &&
+             blueMultiplier==inColorTrans.blueMultiplier && blueOffset==inColorTrans.blueOffset &&
+             alphaMultiplier==inColorTrans.alphaMultiplier && alphaOffset==inColorTrans.alphaOffset;
+   }
 
    static void TidyCache();
 
@@ -414,11 +421,11 @@ struct Transform
 class BitmapCache
 {
 public:
-   BitmapCache(Surface *inSurface,const Transform &inTrans, const Rect &inRect,bool inMaskOnly,
+   BitmapCache(Surface *inSurface,const Transform &inTrans, const ColorTransform &inColorTrans, const Rect &inRect,bool inMaskOnly,
 					 BitmapCache *inMask);
    ~BitmapCache();
 
-   bool StillGood(const Transform &inTransform, const Rect &inVisiblePixels,BitmapCache *inMask);
+   bool StillGood(const Transform &inTransform, const ColorTransform &inColorTrans, const Rect &inVisiblePixels,BitmapCache *inMask);
 
    void Render(const struct RenderTarget &inTarget,const Rect &inClipRect,const BitmapCache *inMask,BlendMode inBlend);
    bool HitTest(double inX, double inY);
@@ -439,6 +446,7 @@ public:
 //private:
    int        mTX,mTY;
 	int        mVersion;
+	ColorTransform mColorTransform;
    Rect       mRect;
    Matrix     mMatrix;
    Scale9     mScale9;
