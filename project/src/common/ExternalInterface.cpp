@@ -522,6 +522,14 @@ void ToValue(value &outVal,const Rect &inRect)
     alloc_field(outVal,_id_height, alloc_float(inRect.h) );
 }
 
+void ToValue(value &outVal,const DRect &inRect)
+{
+    alloc_field(outVal,_id_x, alloc_float(inRect.x) );
+    alloc_field(outVal,_id_y, alloc_float(inRect.y) );
+    alloc_field(outVal,_id_width, alloc_float(inRect.w) );
+    alloc_field(outVal,_id_height, alloc_float(inRect.h) );
+}
+
 void FromValue(ImagePoint &outPoint,value inValue)
 {
    outPoint.x = val_field_numeric(inValue,_id_x);
@@ -2082,7 +2090,7 @@ value nme_display_object_get_bounds(value inObj, value inTarget, value outBounds
       Extent2DF ext;
       obj->GetExtent(trans, ext, false, val_bool(inIncludeStroke) );
       
-      Rect rect;
+      DRect rect;
       if (ext.GetRect(rect))
          ToValue(outBounds,rect);
    }
