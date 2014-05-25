@@ -364,8 +364,8 @@ void TBlitAlpha( const DEST &outDest, const SRC &inSrc,const MASK &inMask,
 {
    for(int y=0;y<inSrcRect.h;y++)
    {
-      outDest.SetPos(inX + inSrcRect.x, inY + y+inSrcRect.y );
-      inMask.SetPos(inX + inSrcRect.x, inY + y+inSrcRect.y );
+      outDest.SetPos(inX, inY + y );
+      inMask.SetPos(inX, inY + y );
       inSrc.SetPos( inSrcRect.x, inSrcRect.y + y );
       for(int x=0;x<inSrcRect.w;x++)
          BlendAlpha(outDest.Next(),inMask.MaskAlpha(inSrc.Next()));
