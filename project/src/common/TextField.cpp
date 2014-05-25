@@ -1365,6 +1365,60 @@ bool TextField::IsCacheDirty()
    return DisplayObject::IsCacheDirty() || mGfxDirty || mLinesDirty || (CaretOn()!=mHasCaret);
 }
 
+extern vkind gObjectKind;
+
+value TextField::GetNativeDescription()
+{
+	Layout();
+
+	if (mCharGroups.size() != 1)
+		return alloc_null();
+
+	CharGroup &group = *mCharGroups[0];
+	TextLineMetrics metrics;
+	memset(&metrics, 0, sizeof(TextLineMetrics));
+	group.UpdateMetrics(metrics);
+
+	value description = alloc_empty_object();
+	alloc_field(description, val_id("ascent"), alloc_float(metrics.ascent));
+	alloc_field(description, val_id("descent"), alloc_float(metrics.descent));
+	alloc_field(description, val_id("height"), alloc_float(metrics.height));
+	
+	std::vector<Surface *> sheets;
+	value glyphs = alloc_array(group.Chars());
+	for(int c=0;c<group.Chars();c++)
+	{
+		int advance = 0;
+		int ch = group.mString[c];
+		Tile t = group.mFont->GetGlyph(ch, advance);
+		int sheet = 0;
+		for (sheet = 0 ; sheet < sheets.size() ; ++sheet)
+			if (sheets[sheet] == t.mSurface)
+				break;
+		if (sheet == sheets.size())
+			sheets.push_back(t.mSurface);
+		
+		value item = alloc_empty_object();
+		val_array_set_i(glyphs,c,item);
+		alloc_field(item, val_id("code"), alloc_int(ch));
+		alloc_field(item, val_id("advance"), alloc_int(advance));
+		alloc_field(item, val_id("sheet"), alloc_int(sheet));
+		alloc_field(item, val_id("xoffset"), alloc_int(t.mOx));
+		alloc_field(item, val_id("yoffset"), alloc_int(t.mOy));
+		alloc_field(item, val_id("rx"), alloc_int(t.mRect.x));
+		alloc_field(item, val_id("ry"), alloc_int(t.mRect.y));
+		alloc_field(item, val_id("rw"), alloc_int(t.mRect.w));
+		alloc_field(item, val_id("rh"), alloc_int(t.mRect.h));
+	}
+	alloc_field(description, val_id("glyphs"), glyphs);
+
+	value sheetsArray = alloc_array(sheets.size());
+	for(int sh=0;sh<sheets.size();sh++)
+		val_array_set_i(sheetsArray,sh,alloc_abstract(gObjectKind,sheets[sh]));
+	alloc_field(description, val_id("sheets"), sheetsArray);
+
+	return description;
+}
 
 
 void TextField::Render( const RenderTarget &inTarget, const RenderState &inState )
