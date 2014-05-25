@@ -52,8 +52,8 @@ Surface *ExtractAlpha(const Surface *inSurface)
 
 BlurFilter::BlurFilter(int inQuality, int inBlurX, int inBlurY) : Filter(inQuality)
 {
-   mBlurX = std::max(0, std::min(256, inBlurX-1) );
-   mBlurY = std::max(0, std::min(256, inBlurY-1) );
+   mBlurX = std::max(0, std::min(255, inBlurX) );
+   mBlurY = std::max(0, std::min(255, inBlurY) );
 }
 
 void BlurFilter::ExpandVisibleFilterDomain(Rect &ioRect,int inPass) const
