@@ -118,6 +118,15 @@ void SimpleSurface::createHardwareSurface() {
    
 }
 
+void SimpleSurface::reload(Surface *src) {
+
+	SimpleSurface *source = (SimpleSurface *)src;
+	mBase = new unsigned char[mStride * mHeight+1];
+	memcpy(mBase, source->mBase, mStride * mHeight);
+	mBase[mStride*mHeight] = 69;
+
+}
+
 void SimpleSurface::MakeTextureOnly()
 { 
    if(mBase)

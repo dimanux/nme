@@ -47,6 +47,7 @@ public:
    virtual void createHardwareSurface() { }
    virtual void destroyHardwareSurface() { }
    virtual void dispose() { }
+   virtual void reload(Surface *src) { /* reload image */}
    virtual void MakeTextureOnly() { /*printf("Dumping bits from Surface\n");*/  }
    virtual void setGPUFormat( PixelFormat pf ) {}
    virtual void multiplyAlpha () {}
@@ -162,6 +163,7 @@ public:
    void createHardwareSurface();
    void destroyHardwareSurface();
    void dispose();
+   void reload(Surface *src);
    
    void MakeTextureOnly();
 

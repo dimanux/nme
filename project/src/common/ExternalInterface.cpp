@@ -4000,6 +4000,17 @@ value nme_bitmap_data_create_hardware_surface(value inHandle)
 }
 DEFINE_PRIM(nme_bitmap_data_create_hardware_surface,1);
 
+value nme_bitmap_data_reload(value inSurface, value srcSurface)
+{
+   Surface *surf;
+   Surface *surfSrc;
+   if (AbstractToObject(inSurface,surf) && AbstractToObject(srcSurface,surfSrc))
+   {
+      surf->reload(surfSrc);
+   }
+   return alloc_null();
+}
+DEFINE_PRIM(nme_bitmap_data_reload,2);
 
 value nme_bitmap_data_dump_bits(value inSurface)
 {
