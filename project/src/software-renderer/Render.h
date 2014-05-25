@@ -59,7 +59,7 @@ void DestRender(const AlphaMask &inAlpha, SOURCE_ &inSource, DEST_ &outDest, con
 
                   if (SOURCE_::HasAlpha)
                   {
-                     alpha -= (alpha>>7);
+                     alpha -= (alpha>>8);
                      if (DEST_::HasAlpha)
                          inBlend.BlendAlpha( outDest,inSource,alpha );
                      else
@@ -90,7 +90,7 @@ void DestRender(const AlphaMask &inAlpha, SOURCE_ &inSource, DEST_ &outDest, con
                inSource.SetPos(x0,y);
                int alpha = run->mAlpha;
                if (!SOURCE_::HasAlpha)
-                  alpha -= (alpha>>7);
+                  alpha -= (alpha>>8);
 
                while(x0++<x1)
                   if (SOURCE_::HasAlpha)
