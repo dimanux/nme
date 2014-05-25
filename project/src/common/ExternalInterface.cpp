@@ -1768,6 +1768,8 @@ value nme_display_object_draw_to_surface(value *arg,int count)
          }
       }
       RenderState state(surf,aa);
+	  state.mTargetOffset.x = -matrix.mtx;
+      state.mTargetOffset.y = -matrix.mty;
       state.mTransform.mMatrix = &matrix;
 
       ColorTransform col_trans;

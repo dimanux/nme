@@ -429,6 +429,13 @@ public:
       (*this.*ItLine)(last,inP0+inPerp2);
    }
 
+   bool Render( const RenderTarget &inTarget, const RenderState &inState )
+   {
+      inTarget.mUseStencil = false;
+      bool result = PolygonRender::Render(inTarget,inState);
+      inTarget.mUseStencil = true;
+      return result;
+   }
 };
 
 // --- TriangleLineRender ---------------------------------------------------

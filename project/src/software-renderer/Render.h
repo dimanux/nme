@@ -119,16 +119,19 @@ struct DestSurface32
 {
    enum { HasAlpha = HAS_ALPHA };
 
-   DestSurface32(const RenderTarget &inTarget) : mTarget(inTarget) { }
+   DestSurface32(const RenderTarget &inTarget) : mTarget(inTarget) { mUseStencil = inTarget.mUseStencil; }
 
-   void SetRow(int inY) { mRow = (ARGB *) mTarget.Row(inY); }
-   void SetX(int inX) { mPtr = mRow + inX; }
+   void SetRow(int inY) { mRow = (ARGB *) mTarget.Row(inY); mStencilRow = mTarget.StencilRow(inY); }
+   void SetX(int inX) { mPtr = mRow + inX; mStencilPtr = mStencilRow + inX; }
    const ARGB Get() { return *mPtr; }
-   void SetInc( ARGB inCol ) { *mPtr++ = inCol; }
+   void SetInc( ARGB inCol ) { if (mUseStencil) { if (*mStencilPtr != 0) inCol = ARGB(0); *mPtr++ = inCol; *mStencilPtr = ((*mStencilPtr + 1)%2); ++mStencilPtr; } else *mPtr++ = inCol; }
    const Rect &GetRect() const { return mTarget.mRect; }
 
    ARGB *mRow;
    ARGB *mPtr;
+   uint8 *mStencilRow;
+   uint8 *mStencilPtr;
+   bool mUseStencil;
    const RenderTarget &mTarget;
 };
 

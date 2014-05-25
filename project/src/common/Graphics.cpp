@@ -659,6 +659,7 @@ bool Graphics::Render( const RenderTarget &inTarget, const RenderState &inState 
    }
    else
    {
+      IGraphicsFill* lastFill = 0;
       for(int i=0;i<mJobs.size();i++)
       {
          GraphicsJob &job = mJobs[i];
@@ -671,7 +672,14 @@ bool Graphics::Render( const RenderTarget &inTarget, const RenderState &inState 
                return true;
          }
          else
+		 {
+            if (job.mFill != lastFill)
+            {
+               inTarget.ClearStencil();
+               lastFill = job.mFill;
+            }
             job.mSoftwareRenderer->Render(inTarget,inState);
+         }
       }
    }
    
@@ -769,6 +777,11 @@ RenderTarget::RenderTarget(const Rect &inRect,PixelFormat inFormat,uint8 *inPtr,
    mPixelFormat = inFormat;
    mSoftPtr = inPtr;
    mSoftStride = inStride;
+   if (mRect.w*mRect.h > 0)
+      mStencilPtr = new uint8[mRect.w*mRect.h];
+   else
+      mStencilPtr = 0;
+   mUseStencil = true;
    mHardware = 0;
 }
 
@@ -778,6 +791,8 @@ RenderTarget::RenderTarget(const Rect &inRect,HardwareRenderer *inHardware)
    mPixelFormat = pfHardware;
    mSoftPtr = 0;
    mSoftStride = 0;
+   mStencilPtr = 0;
+   mUseStencil = true;
    mHardware = inHardware;
 }
 
@@ -786,7 +801,15 @@ RenderTarget::RenderTarget() : mRect(0,0)
    mPixelFormat = pfAlpha;
    mSoftPtr = 0;
    mSoftStride = 0;
+   mStencilPtr = 0;
+   mUseStencil = true;
    mHardware = 0;
+}
+
+RenderTarget::~RenderTarget()
+{
+   if (mStencilPtr != 0)
+      delete[] mStencilPtr;
 }
 
 
@@ -830,6 +853,31 @@ void RenderTarget::Clear(uint32 inColour, const Rect &inRect) const
    }
 }
 
+RenderTarget &RenderTarget::operator = (const RenderTarget &renderTarget)
+{
+   mRect = renderTarget.mRect;
+   mPixelFormat = renderTarget.mPixelFormat;
+   mSoftPtr = renderTarget.mSoftPtr;
+   mSoftStride = renderTarget.mSoftStride;
+   if (mStencilPtr != 0)
+      delete[] mStencilPtr;
+   if (renderTarget.mStencilPtr != 0)
+   {
+      mStencilPtr = new uint8[mRect.w*mRect.h];
+      memcpy(mStencilPtr, renderTarget.mStencilPtr, mRect.w*mRect.h);
+   }
+   else
+      mStencilPtr = 0;
+   mUseStencil = renderTarget.mUseStencil;
+   mHardware = renderTarget.mHardware;
+   return (*this);
+}
+
+void RenderTarget::ClearStencil() const
+{
+   if (mStencilPtr != 0)
+      memset(mStencilPtr, 0, mRect.w*mRect.h);
+}
 
 
 
