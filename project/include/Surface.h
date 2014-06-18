@@ -81,7 +81,7 @@ public:
    virtual uint32 getPixel(int inX,int inY) { return 0; }
    virtual void setPixel(int inX,int inY,uint32 inRGBA,bool inAlphaToo=false) { }
    virtual void scroll(int inDX,int inDY) { }
-   virtual void colorTransform(const Rect &inRect, ColorTransform &inTransform) { }
+   virtual void colorTransform(const Rect &inRect, const ColorTransform &inTransform) { }
    virtual void applyFilter(Surface *inSrc, const Rect &inRect, ImagePoint inOffset, Filter *inFilter) { }
 
    virtual void noise(unsigned int randomSeed, unsigned int low, unsigned int high, int channelOptions, bool grayScale) { }
@@ -147,7 +147,7 @@ public:
                             int inPosX, int inPosY,
                             int inSrcChannel, int inDestChannel ) const;
 
-   virtual void colorTransform(const Rect &inRect, ColorTransform &inTransform);
+   virtual void colorTransform(const Rect &inRect, const ColorTransform &inTransform);
    virtual void setGPUFormat( PixelFormat pf ) { mGPUPixelFormat = pf; }
    void unmultiplyAlpha();
    

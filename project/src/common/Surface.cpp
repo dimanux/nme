@@ -768,7 +768,7 @@ void SimpleSurface::BlitTo(const RenderTarget &outDest,
    }
 }
 
-void SimpleSurface::colorTransform(const Rect &inRect, ColorTransform &inTransform)
+void SimpleSurface::colorTransform(const Rect &inRect, const ColorTransform &inTransform)
 {
    if (mPixelFormat==pfAlpha || !mBase)
       return;

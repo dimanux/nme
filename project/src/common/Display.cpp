@@ -1342,7 +1342,7 @@ void DisplayObjectContainer::Render( const RenderTarget &inTarget, const RenderS
 
 			   {
                    obj_state->CombineColourTransform(inState,&obj->colorTransform,&col_trans);
-                   bitmap->colorTransform(Rect(0,0,bitmap->Width(),bitmap->Height()), col_trans);
+                   bitmap->colorTransform(Rect(0,0,bitmap->Width(),bitmap->Height()), *obj_state->mColourTransform);
                }
 
                full = orig;
