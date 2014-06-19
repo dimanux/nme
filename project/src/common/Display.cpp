@@ -1190,8 +1190,7 @@ void DisplayObjectContainer::Render( const RenderTarget &inTarget, const RenderS
 
          // todo: combine masks ?
          //obj->DebugRenderMask(inTarget,obj->getMask());
-         obj_state->mMask = mask->GetBitmapCache();
-		 if (obj_state->mMask != 0)
+         if (obj_state->mMask != 0)
          {
             BitmapCache *innerMask = mask->GetBitmapCache();
             BitmapCache *outerMask = obj_state->mMask;
@@ -1218,6 +1217,7 @@ void DisplayObjectContainer::Render( const RenderTarget &inTarget, const RenderS
             }
             innerMask->mBitmap = innerBitmap;
          }
+		 obj_state->mMask = mask->GetBitmapCache();
       }
 
       if (inState.mPhase==rpBitmap)
