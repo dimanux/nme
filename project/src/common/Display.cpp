@@ -2,6 +2,8 @@
 #include <Surface.h>
 #include <math.h>
 
+#include "TextField.h"
+
 #ifndef M_PI
 #define M_PI 3.1415926535897932385
 #endif
@@ -240,6 +242,10 @@ void DisplayObject::Render( const RenderTarget &inTarget, const RenderState &inS
          else
             inState.mHitResult = mParent;
       }
+   }
+   else if (inState.mPhase==rpBitmap && inState.mWasDirtyPtr && !*inState.mWasDirtyPtr)
+   {
+      *inState.mWasDirtyPtr = DisplayObject::IsCacheDirty();
    }
 }
 
@@ -831,8 +837,8 @@ void SimpleButton::GetExtent(const Transform &inTrans, Extent2DF &outExt,bool in
 
 bool SimpleButton::IsCacheDirty()
 {
-   for(int i=0;i<stateSIZE;i++)
-      if (mState[i] && mState[i]->IsCacheDirty())
+   DisplayObject *obj = mState[mMouseState];
+   if (obj && obj->IsCacheDirty())
          return true;
    return DisplayObject::IsCacheDirty();
 }
@@ -841,16 +847,17 @@ bool SimpleButton::IsCacheDirty()
 void SimpleButton::ClearCacheDirty()
 {
    DisplayObject::ClearCacheDirty();
-   for(int i=0;i<stateSIZE;i++)
-      if (mState[i])
-         mState[i]->ClearCacheDirty();
+   DisplayObject *obj = mState[mMouseState];
+   if (obj)
+      obj->ClearCacheDirty();
+   DisplayObject::ClearCacheDirty();
 }
 
 bool SimpleButton::NonNormalBlendChild()
 {
-   for(int i=0;i<stateSIZE;i++)
-      if (mState[i] && mState[i]->NonNormalBlendChild())
-         return true;
+   DisplayObject *obj = mState[mMouseState];
+   if (obj)
+      return obj->NonNormalBlendChild();
    return false;
 }
 
@@ -1264,6 +1271,8 @@ void DisplayObjectContainer::Render( const RenderTarget &inTarget, const RenderS
                   continue;
                else
                {
+                  if (state.mWasDirtyPtr)
+                     *state.mWasDirtyPtr = true;
                   obj->SetBitmapCache(0);
                }
             }
@@ -1271,6 +1280,9 @@ void DisplayObjectContainer::Render( const RenderTarget &inTarget, const RenderS
             // Ok, build bitmap cache...
             if (visible_bitmap.HasPixels())
             {
+               if (state.mWasDirtyPtr)
+                  *state.mWasDirtyPtr = true;
+
                /*
                printf("object rect %d,%d %dx%d\n", rect.x, rect.y, rect.w, rect.h);
                printf("filtered rect %d,%d %dx%d\n", filtered.x, filtered.y, filtered.w, filtered.h);
@@ -1944,6 +1956,12 @@ void Stage::HandleEvent(Event &inEvent)
             mMouseDownObject = hit_obj;
          }
       }
+      if (inEvent.type==etMouseUp && (inEvent.value==3 || inEvent.value==4) )
+      {
+         TextField *text =  dynamic_cast<TextField *>(hit_obj);
+         if (text && text->mouseWheelEnabled)
+            text->OnScrollWheel(inEvent.value==3 ? -1 : 1);
+      }
    }
    #if defined(IPHONE) || defined(ANDROID) || defined(WEBOS) || defined(TIZEN)
    else if (inEvent.type==etMouseClick ||  inEvent.type==etMouseDown ||
@@ -2105,6 +2123,8 @@ int Stage::GetAA()
 }
 
 
+#ifdef HX_LIME // {
+
 void Stage::RenderStage()
 {
    ColorTransform::TidyCache();
@@ -2170,6 +2190,67 @@ void Stage::RenderStage()
 
    // Clear alpha masks
 }
+void Stage::BeginRenderStage(bool) { }
+void Stage::EndRenderStage() { }
+
+#else  // } nme(not lime) split render stage into 3 phases .. {
+
+void Stage::BeginRenderStage(bool inClear)
+{
+   Surface *surface = GetPrimarySurface();
+   currentTarget = surface->BeginRender( Rect(surface->Width(),surface->Height()),false );
+   if (inClear)
+      surface->Clear( (opaqueBackground | 0xff000000) & getBackgroundMask() );
+}
+
+void Stage::RenderStage()
+{
+   ColorTransform::TidyCache();
+
+   if (currentTarget.IsHardware())
+      currentTarget.mHardware->SetQuality(quality);
+
+   RenderState state(0, GetAA() );
+
+   state.mTransform.mMatrix = &mStageScale;
+
+   state.mClipRect = Rect( currentTarget.Width(), currentTarget.Height() );
+
+   state.mPhase = rpBitmap;
+   state.mRoundSizeToPOW2 = currentTarget.IsHardware();
+   Render(currentTarget,state);
+
+   state.mPhase = rpRender;
+   Render(currentTarget,state);
+}
+
+void Stage::EndRenderStage()
+{
+   currentTarget = RenderTarget();
+   GetPrimarySurface()->EndRender();
+   ClearCacheDirty();
+   Flip();
+}
+
+bool Stage::BuildCache()
+{
+   Surface *surface = GetPrimarySurface();
+   RenderState state(surface, GetAA() );
+   state.mTransform.mMatrix = &mStageScale;
+   bool wasDirty = false;
+   state.mWasDirtyPtr = &wasDirty;
+
+   state.mPhase = rpBitmap;
+
+   RenderTarget target(state.mClipRect, surface->GetHardwareRenderer());
+   state.mRoundSizeToPOW2 = surface->GetHardwareRenderer();
+   Render(target,state);
+
+   return wasDirty;
+}
+
+ 
+#endif // }
 
 double Stage::getStageWidth()
 {

@@ -405,7 +405,7 @@ namespace nme
       else
       {
          alSourcef(mSourceID, AL_GAIN, inTransform.volume);
-         alSource3f(mSourceID, AL_POSITION, inTransform.pan * 1, 0, 0);
+         alSource3f(mSourceID, AL_POSITION, (float) cos((inTransform.pan - 1) * (1.5707)), 0, (float) sin((inTransform.pan + 1) * (1.5707)));
       }
    }
    
@@ -499,6 +499,7 @@ namespace nme
       IncRef();
       mBufferID = 0;
       mIsStream = false;
+      mTotalTime = -1;
       
       #ifdef HX_MACOS
       char fileURL[1024];
@@ -666,24 +667,32 @@ namespace nme
    
    double OpenALSound::getLength()
    {
-      if (mIsStream)
+      if (mTotalTime == -1)
       {
-         AudioStream_Ogg *audioStream = new AudioStream_Ogg();
-         if (audioStream)
+         if (mIsStream)
          {
-            int length = audioStream->getLength(mStreamPath.c_str());
-            audioStream->release();
-            return length * 1000;
+            AudioStream_Ogg *audioStream = new AudioStream_Ogg();
+            if (audioStream)
+            {
+               int length = audioStream->getLength(mStreamPath.c_str());
+               audioStream->release();
+               mTotalTime = length * 1000;
+               delete audioStream;
+            }
+            else
+            {
+               mTotalTime = 0;
+            }
          }
-         return 0;
+         else
+         {
+            double result = ((double)bufferSize) / (frequency * channels * (bitsPerSample/8) );
+            
+            //LOG_SOUND("OpenALSound getLength returning %f", toBeReturned);
+            mTotalTime = result * 1000;
+         }
       }
-      else
-      {
-         double result = ((double)bufferSize) / (frequency * channels * (bitsPerSample/8) );
-         
-         //LOG_SOUND("OpenALSound getLength returning %f", toBeReturned);
-         return result * 1000;
-      }
+      return mTotalTime;
    }
    
    
@@ -847,11 +856,33 @@ namespace nme
    }
    
    
+   void Sound::Shutdown()
+   {
+      OpenALClose();
+   }
+   
+   
    //Ogg Audio Stream implementation
+   AudioStream_Ogg::AudioStream_Ogg() {
+         
+      source = 0;
+      mIsValid = false;
+      mSuspend = false;
+      oggFile = 0;
+      oggStream = 0;
+      mLoops = 0;
+      mStartTime = 0;
+      
+   }
+   
+   
    int AudioStream_Ogg::getLength(const std::string &path) {
+        
+        if (openal_is_shutdown) return 0;
         
         int result;
         mPath = std::string(path.c_str());
+        mIsValid = true;
         
         #ifdef ANDROID
         
@@ -877,15 +908,15 @@ namespace nme
             mIsValid = false;
             return 0;
         }
-      
-      oggStream = new OggVorbis_File();
+        
+        oggStream = new OggVorbis_File();
         
         #ifdef ANDROID
         result = ov_open_callbacks(this, oggStream, NULL, 0, callbacks);
         #else
         result = ov_open(oggFile, oggStream, NULL, 0);
         #endif
-         
+        
         if(result < 0) {
          
             fclose(oggFile);
@@ -904,6 +935,8 @@ namespace nme
    
    void AudioStream_Ogg::open(const std::string &path, int startTime, int inLoops, const SoundTransform &inTransform) {
         
+        if (openal_is_shutdown) return;
+   
         int result;
         mPath = std::string(path.c_str());
         mStartTime = startTime;
@@ -988,6 +1021,8 @@ namespace nme
 
    void AudioStream_Ogg::release() {
       
+      if (openal_is_shutdown) return;
+      
       if (source) {
          alSourceStop(source);
          empty();
@@ -1012,7 +1047,9 @@ namespace nme
    
    
    bool AudioStream_Ogg::playback() {
-
+      
+      if (openal_is_shutdown) return false;
+      
       if(playing()) {
            return true;
       }
@@ -1034,7 +1071,9 @@ namespace nme
    
    
    bool AudioStream_Ogg::playing() {
-      
+       
+       if (openal_is_shutdown) return false;
+       
        ALint state;
        alGetSourcei(source, AL_SOURCE_STATE, &state);
        return (state == AL_PLAYING);
@@ -1043,7 +1082,8 @@ namespace nme
    
    
    bool AudioStream_Ogg::update() {
-      
+       
+       if (openal_is_shutdown) return false;
        if (mSuspend) return true;
        if (!mIsValid) return false;
       
@@ -1085,6 +1125,8 @@ namespace nme
    
    bool AudioStream_Ogg::stream( ALuint buffer ) {
       
+       if (openal_is_shutdown) return false;
+       
        if (mSuspend) return true;
        //LOG_SOUND("STREAM\n");
        char pcm[STREAM_BUFFER_SIZE];
@@ -1133,6 +1175,8 @@ namespace nme
 
     void AudioStream_Ogg::empty() {
 
+      if (openal_is_shutdown) return;
+      
       int queued;
     
       alGetSourcei(source, AL_BUFFERS_QUEUED, &queued);
@@ -1149,6 +1193,9 @@ namespace nme
 
     void AudioStream_Ogg::check()
     {
+
+      if (openal_is_shutdown) return;
+      
       int error = alGetError();
 
       if(error != AL_NO_ERROR) {

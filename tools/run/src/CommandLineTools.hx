@@ -34,13 +34,13 @@ class CommandLineTools
    static var allTargets = 
           [ "cpp", "neko", "ios", "iphone", "iphoneos", "iosview", "ios-view",
             "androidview", "android-view", "iphonesim", "android", "androidsim",
-            "windows", "mac", "linux", "flash" ];
+            "windows", "mac", "linux", "flash", "cppia" ];
    static var allCommands = 
           [ "help", "setup", "document", "generate", "create", "xcode", "clone", "demo",
              "installer", "copy-if-newer", "tidy", "set", "unset",
             "clean", "update", "build", "run", "rerun", "install", "uninstall", "trace", "test" ];
-   static var setNames =  [ "target", "bin", "command" ];
-   static var setNamesHelp =  [ "default when no target is specifiec", "alternate location for binary files", "default command to run" ];
+   static var setNames =  [ "target", "bin", "command", "cppiaHost", "cppiaClassPath" ];
+   static var setNamesHelp =  [ "default when no target is specifiec", "alternate location for binary files", "default command to run", "executable for running cppia code", "additional class path when building cppia" ];
    static var quickSetNames =  [ "debug", "verbose" ];
 
 
@@ -84,6 +84,9 @@ class CommandLineTools
 
          case Platform.FLASH:
             platform = new platforms.FlashPlatform(project);
+
+         case Platform.CPPIA:
+            platform = new platforms.CppiaPlatform(project);
       }
       if (platform != null) 
       {
@@ -130,6 +133,12 @@ class CommandLineTools
                platform.buildPackage();
                platform.postBuild();
             }
+         }
+
+         if (command == "build" || command == "run" || command=="test") 
+         {
+            if (platform.deploy(command!="build"))
+               command = "build";
          }
 
          if (command == "install" || command == "run" || command == "test") 
@@ -859,9 +868,9 @@ class CommandLineTools
 
       project.checkRelocation( new Path(projectFile).dir );
 
-      project.haxedefs.set("nme_install_tool", 1);
+      project.haxedefs.set("nme_install_tool", "1");
       project.haxedefs.set("nme_ver", nmeVersion);
-      project.haxedefs.set("nme" + nmeVersion.split(".")[0], 1);
+      project.haxedefs.set("nme" + nmeVersion.split(".")[0], "1");
 
       project.setTarget(targetName);
 
@@ -989,10 +998,13 @@ class CommandLineTools
          Sys.println("Usage : nme set name [value]");
          for(n in 0...setNames.length)
          {
-            Sys.println(" " + setNames[n] + " = " + setNamesHelp[n]);
+            Sys.println(" " + setNames[n] + " : " + setNamesHelp[n]);
+            Sys.println("    = " + Reflect.field(storeData, setNames[n]) );
          }
          for(name in quickSetNames)
-            Sys.println(' $name');
+         {
+            Sys.println(' $name [' + (Reflect.field(storeData,name)==null ? "not set" : "set") + ']' );
+         }
       }
    }
 
@@ -1069,6 +1081,10 @@ class CommandLineTools
          project.debug = debug = true;
          Log.verbose("Using debug option from setting");
       }
+      if (storeData.cppiaClassPath!=null)
+         project.localDefines.set("CPPIA_CLASSPATH", storeData.cppiaClassPath);
+      if (storeData.cppiaHost!=null)
+         project.localDefines.set("CPPIA_HOST", storeData.cppiaHost);
 
 
       // Haxelib bug
@@ -1126,6 +1142,7 @@ class CommandLineTools
             createTemplate();
 
          case "xcode":
+            Sys.putEnv("HXCPP_NO_COLOUR","1");
             if (Sys.getEnv("NME_ALREADY_BUILDING")=="BUILDING")
                Sys.println("...already building");
             else
@@ -1240,7 +1257,7 @@ class CommandLineTools
             }
             else
             {
-               project.haxedefs.set(argument.substr(0, equals), argValue);
+               project.localDefines.set(argument.substr(0, equals), argValue);
             }
          }
          else if (argument.substr(0, 1) == "-") 

@@ -32,6 +32,7 @@
 #include <NmeBinVersion.h>
 #include <NmeStateVersion.h>
 #include <nme/NmeApi.h>
+#include <hx/CFFIPrime.h>
 
 
 #ifdef min
@@ -132,6 +133,7 @@ static int _id_matrix;
 static int _id_ascent;
 static int _id_descent;
 
+static Rect _tile_rect;
 
 vkind gObjectKind;
 
@@ -232,6 +234,8 @@ extern "C" void InitIDs()
    _id_descent = val_id("descent");
 
    kind_share(&gObjectKind,"nme::Object");
+   
+   _tile_rect = Rect(0, 0, 1, 1);
 
    #ifndef HX_LIME
    InitCamera();
@@ -580,6 +584,7 @@ void FromValue(value obj, URLRequest &request)
    request.contentType = val_string( val_field(obj, _id_contentType) );
    request.debug = val_field_numeric( obj, _id_verbose );
    request.postData = ByteArray( val_field(obj,_id___bytes) );
+   request.followRedirects = val_field_numeric( obj, _id_followRedirects ); 
 
    // headers
   if (!val_is_null(val_field(obj, _id_requestHeaders)) && val_array_size(val_field(obj, _id_requestHeaders)) )
@@ -638,8 +643,8 @@ value nme_time_stamp()
 {
    return alloc_float( GetTimeStamp() );
 }
-DEFINE_PRIM(nme_time_stamp,0);
 
+DEFINE_PRIM(nme_time_stamp,0)
 
 value nme_error_output(value message)
 {
@@ -1306,19 +1311,92 @@ value nme_set_stage_handler(value inStage,value inHandler,value inNomWidth, valu
 
 DEFINE_PRIM(nme_set_stage_handler,4);
 
+Stage *sgNativeHandlerStage = 0;
+
+void external_handler_native( nme::Event &ioEvent, void *inUserData )
+{
+   AutoGCRoot *handler = (AutoGCRoot *)inUserData;
+   if (ioEvent.type == etDestroyHandler)
+   {
+      delete handler;
+      return;
+   }
+
+   static AutoGCRoot *dynamicEvent = 0;
+   static nme::Event eventData;
+   static vkind eventKind;
+   if (dynamicEvent==0)
+   {
+      kind_share(&eventKind,"nme::Event");
+      value eventHolder = alloc_abstract(eventKind,&eventData);
+      dynamicEvent = new AutoGCRoot(eventHolder);
+   }
+
+   eventData = ioEvent;
+   eventData.pollTime = GetTimeStamp();
+
+   val_call1(handler->get(), dynamicEvent->get());
+
+   ioEvent.result = eventData.result;
+
+   sgNativeHandlerStage->SetNextWakeDelay(eventData.pollTime);
+}
+
+
+value nme_set_stage_handler_native(value inStage,value inHandler,value inNomWidth, value inNomHeight)
+{
+   Stage *stage;
+   if (!AbstractToObject(inStage,stage))
+      return alloc_null();
+
+   sgNativeHandlerStage = stage;
+
+   AutoGCRoot *data = new AutoGCRoot(inHandler);
+
+   stage->SetNominalSize(val_int(inNomWidth), val_int(inNomHeight) );
+   stage->SetEventHandler(external_handler_native,data);
+
+   return alloc_null();
+}
+
+DEFINE_PRIM(nme_set_stage_handler_native,4);
+
+
+value nme_stage_begin_render(value inStage,value inClear)
+{
+   Stage *stage;
+   if (AbstractToObject(inStage,stage))
+      stage->BeginRenderStage(val_bool(inClear));
+   return alloc_null();
+}
+DEFINE_PRIM(nme_stage_begin_render,2);
+
+
 
 value nme_render_stage(value inStage)
 {
    Stage *stage;
    if (AbstractToObject(inStage,stage))
-   {
       stage->RenderStage();
-   }
-
    return alloc_null();
 }
 
 DEFINE_PRIM(nme_render_stage,1);
+
+
+
+value nme_stage_end_render(value inStage)
+{
+   Stage *stage;
+   if (AbstractToObject(inStage,stage))
+      stage->EndRenderStage();
+   return alloc_null();
+}
+DEFINE_PRIM(nme_stage_end_render,1);
+
+
+
+
 
 value nme_set_render_gc_free(value inGcFree)
 {
@@ -1502,6 +1580,33 @@ value nme_stage_set_cursor_position_in_window( value inStage, value inX, value i
    return alloc_null();
 }
 DEFINE_PRIM(nme_stage_set_cursor_position_in_window,3);
+
+
+value nme_stage_get_window_x( value inStage )
+{
+   Stage *stage;
+   if (AbstractToObject(inStage,stage))
+   {
+      return alloc_int(stage->GetWindowX());
+   }
+   return alloc_int(0);
+}
+DEFINE_PRIM(nme_stage_get_window_x,1);
+
+
+value nme_stage_get_window_y( value inStage )
+{
+   Stage *stage;
+   if (AbstractToObject(inStage,stage))
+   {
+      return alloc_int(stage->GetWindowY());
+   }
+   return alloc_int(0);
+}
+DEFINE_PRIM(nme_stage_get_window_y,1);
+
+
+
 
 value nme_stage_set_window_position( value inStage, value inX, value inY ) {
 
@@ -2666,6 +2771,8 @@ value nme_gfx_draw_tiles(value inGfx,value inSheet, value inXYIDs,value inFlags,
         TILE_RGB      = 0x0004,
         TILE_ALPHA    = 0x0008,
         TILE_TRANS_2x2= 0x0010,
+        TILE_RECT     = 0x0020,
+        TILE_ORIGIN   = 0x0040,
         TILE_SMOOTH   = 0x1000,
 
         TILE_BLEND_ADD   = 0x10000,
@@ -2691,10 +2798,20 @@ value nme_gfx_draw_tiles(value inGfx,value inSheet, value inXYIDs,value inFlags,
 
       bool smooth = flags & TILE_SMOOTH;
       gfx->beginTiles(&sheet->GetSurface(), smooth, blend);
+	  
+	  bool useRect = flags & TILE_RECT;
+	  bool useOrigin = flags & TILE_ORIGIN;
 
       int components = 3;
       int scale_pos = 3;
       int rot_pos = 3;
+	  
+	  if (useRect)
+	  {
+		  components = useOrigin ? 8 : 6;
+		  scale_pos = useOrigin ? 8 : 6;
+		  rot_pos = useOrigin ? 8 : 6;
+	  }
 
       if (flags & TILE_TRANS_2x2)
          components+=4;
@@ -2726,36 +2843,102 @@ value nme_gfx_draw_tiles(value inGfx,value inSheet, value inXYIDs,value inFlags,
       double x;
       double y;
       value *val_ptr = val_array_value(inXYIDs);
+	  
+	  Rect r = _tile_rect;
+	  
+	  double ox;
+      double oy;
 
       for(int i=0;i<n;i++)
       {
-         if (vals)
+         ox = 0.0;
+		 oy = 0.0;
+		  
+		 if (vals)
          {
             x = vals[0];
             y = vals[1];
-            id =vals[2];
+			
+			if (useRect)
+			{
+				r.x = vals[2];
+			    r.y = vals[3];
+			    r.w = vals[4];
+			    r.h = vals[5];
+				
+				if (useOrigin)
+			    {
+					ox = vals[6];
+			    	oy = vals[7];
+				}
+			}
+			else
+			{
+				id =vals[2];
+			}
          }
          else if (fvals)
          {
-            x = fvals[0];
-            y = fvals[1];
-            id =fvals[2];
+             x = fvals[0];
+             y = fvals[1];
+			
+			if (useRect)
+			{
+				 r.x = fvals[2];
+			     r.y = fvals[3];
+			     r.w = fvals[4];
+			     r.h = fvals[5];
+				 
+				 if (useOrigin)
+			     {
+					ox = fvals[6];
+			    	oy = fvals[7];
+				 }
+			}
+			else
+			{
+				 id =fvals[2];
+			}
          }
          else
          {
-            x = val_number(val_ptr[0]);
-            y = val_number(val_ptr[1]);
-            id =val_number(val_ptr[2]);
+             x = val_number(val_ptr[0]);
+             y = val_number(val_ptr[1]);
+			
+			if (useRect)
+			{
+				 r.x = val_number(val_ptr[2]);
+                 r.y = val_number(val_ptr[3]);
+                 r.w = val_number(val_ptr[4]);
+                 r.h = val_number(val_ptr[5]);
+				 
+				 if (useOrigin)
+				 {
+					 ox = val_number(val_ptr[6]);
+                     oy = val_number(val_ptr[7]);
+				 }
+			}
+			else
+			{
+				 id =val_number(val_ptr[2]);
+			}
          }
-         if (id>=0 && id<max)
+         if ((id>=0 && id<max) || useRect)
          {
-            const Tile &tile =  sheet->GetTile(id);
-
-            double ox = tile.mOx;
-            double oy = tile.mOy;
-            const Rect &r = tile.mRect;
-            int pos = 3;
-
+             int pos = 3;
+			 
+			 if (useRect)
+			 {
+				 pos = useOrigin ? 8 : 6;
+			 }
+			 else
+			 {
+				 const Tile &tile =  sheet->GetTile(id);
+                 ox = tile.mOx;
+                 oy = tile.mOy;
+                 r = tile.mRect;
+			 }
+			 
             if (trans_2x2)
             {
                if (flags & TILE_TRANS_2x2)
@@ -2835,8 +3018,8 @@ value nme_gfx_draw_tiles(value inGfx,value inSheet, value inXYIDs,value inFlags,
    }
    return alloc_null();
 }
-DEFINE_PRIM(nme_gfx_draw_tiles,5);
 
+DEFINE_PRIM(nme_gfx_draw_tiles,5);
 
 static bool sNekoLutInit = false;
 static int sNekoLut[256];
@@ -4471,7 +4654,8 @@ value nme_curl_get_data(value inLoader)
    if (AbstractToObject(inLoader,loader))
    {
       ByteArray b = loader->releaseData();
-      return b.mValue;
+      if (b.mValue)
+         return b.mValue;
    }
    #endif
    return alloc_null();

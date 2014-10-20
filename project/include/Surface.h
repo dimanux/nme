@@ -69,6 +69,8 @@ public:
 
    Texture *GetTexture(HardwareContext *inHardware,int inPlane=0);
 
+   virtual HardwareRenderer *GetHardwareRenderer() { return 0; }
+
    void Bind(HardwareContext &inHardware,int inSlot=0);
 
    virtual Surface *clone() { return 0; }
@@ -207,6 +209,9 @@ public:
    {
       mHardware->EndRender();
    }
+
+   HardwareRenderer *GetHardwareRenderer() { return mHardware; }
+
 
    void BlitTo(const RenderTarget &outTarget, const Rect &inSrcRect,int inPosX, int inPosY,
                BlendMode inBlend, const BitmapCache *inMask,

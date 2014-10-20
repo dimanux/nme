@@ -51,10 +51,12 @@ class OpenALChannel;
    static QuickVec<intptr_t> sgOpenChannels;
 
    static bool openal_is_init = false;
+   static bool openal_is_shutdown = false;
 
    static bool OpenALInit()
    {
       //LOG_SOUND("Sound.mm OpenALInit()");
+      if (openal_is_shutdown) return false;
       
       if (!openal_is_init)
       {
@@ -70,12 +72,25 @@ class OpenALChannel;
       return sgContext;
    }
    
+   static bool OpenALClose()
+   {
+      if (openal_is_init && !openal_is_shutdown)
+      {
+         openal_is_shutdown = true;
+         alcMakeContextCurrent(0);
+         if (sgContext) alcDestroyContext(sgContext);
+         if (sgDevice) alcCloseDevice(sgDevice);
+      }
+      return true;
+   }
+   
    
    //Ogg specific stream implementation
    class AudioStream_Ogg : public AudioStream {
        
        public:
-
+           
+           AudioStream_Ogg();
            void open(const std::string &path, int startTime, int inLoops, const SoundTransform &inTransform);
            void release();
            bool playback();
@@ -234,6 +249,7 @@ class OpenALChannel;
          ALint channels;
 
          ALuint mBufferID;
+         double mTotalTime;
          bool mIsStream;
          std::string mStreamPath;
          std::string mError;
